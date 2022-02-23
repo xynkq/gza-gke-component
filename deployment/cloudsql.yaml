@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: cloudsql
+spec:
+  ports:
+  - appProtocol: mysql
+    name: mysql
+    port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app: cloudsql
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: cloudsql
+  labels:
+    app: cloudsql
+    role: cloudsql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudsql
+      role: cloudsql
+  template:
+    metadata:
+      labels:
+        app: cloudsql
+        role: cloudsql
+    spec:
+      serviceAccountName: erica-gke-workloadidentity
+      terminationGracePeriodSeconds: 10
+      restartPolicy: Always
+      containers:
+        - image: gcr.io/cloudsql-docker/gce-proxy:1.27.1
+          imagePullPolicy: Always
+          name: cloudsql
+          command: 
+          - "/cloud_sql_proxy"
+          - "-instances=swit-cloud-erica:asia-northeast1:erica-test=tcp:0.0.0.0:3306"
+          - "-log_debug_stdout=true" 
+          securityContext:
+            runAsNonRoot: true
+          ports:
+            - containerPort: 3306
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
