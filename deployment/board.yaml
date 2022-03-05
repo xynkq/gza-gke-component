@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: default
+  name: board
+spec:
+  ports:
+  - appProtocol: grpc
+    name: grpc
+    port: 50051
+    targetPort: 50051
+    protocol: TCP
+  selector:
+    app: board
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: default
+  name: board
+  labels:
+    app: board
+    role: board
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: board
+      role: board
+  template:
+    metadata:
+      labels:
+        app: board
+        role: board
+    spec:
+      serviceAccountName: erica-gke-workloadidentity
+      containers:
+        - name: board
+          image: gcr.io/swit-cloud-erica/erica/grpc/board-golang
+          ports:
+          - containerPort: 50051
+          # readinessProbe:
+          #   exec:
+          #     command: ["/bin/grpc_health_probe", "-addr=:50051"]
+          # livenessProbe:
+          #   exec:
+          #     command: ["/bin/grpc_health_probe", "-addr=:50051"]
+          envFrom:
+            - configMapRef:
+              name: erica-env-config
+          env:
+          - name: MYSQL_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: usrename
+                name: cloudsql-db-credentials
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: cloudsql-db-credentials
+          - name: BOARD_HOST
+            value: "board"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 100m
+              memory: 256Mi
